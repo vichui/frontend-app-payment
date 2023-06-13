@@ -2,7 +2,7 @@ import {
   call, put, takeEvery, select, delay,
 } from 'redux-saga/effects';
 import { stopSubmit } from 'redux-form';
-import { getReduxFormValidationErrors } from './utils';
+import { getReduxFormValidationErrors, MINS_AS_MS, SECS_AS_MS } from './utils';
 import { MESSAGE_TYPES } from '../../feedback/data/constants';
 
 // Actions
@@ -23,6 +23,8 @@ import {
   fetchCaptureKey,
   clientSecretProcessing,
   fetchClientSecret,
+  paymentStatusDataReceived,
+  updatePaymentStatus,
 } from './actions';
 
 import { STATUS_LOADING } from '../checkout/payment-form/flex-microform/constants';
@@ -107,12 +109,13 @@ export function* handleFetchBasket() {
   } finally {
     yield put(basketProcessing(false)); // we are done modifying the basket
     yield put(fetchBasket.fulfill()); // mark the basket as finished loading
+    yield put(updatePaymentStatus({ isBasketProcessing: (yield isBasketProcessing()) || false }));
   }
 }
 
 export function* handleCaptureKeyTimeout() {
   // Start at the 12min mark to leave 1 min of buffer on the 15min timeout
-  yield delay(12 * 60 * 1000);
+  yield delay(MINS_AS_MS(12));
   yield call(
     handleMessages,
     [{
@@ -123,7 +126,7 @@ export function* handleCaptureKeyTimeout() {
     window.location.search,
   );
 
-  yield delay(1 * 60 * 1000);
+  yield delay(MINS_AS_MS(1));
   yield call(
     handleMessages,
     [{
@@ -134,7 +137,7 @@ export function* handleCaptureKeyTimeout() {
     window.location.search,
   );
 
-  yield delay(1 * 60 * 1000);
+  yield delay(MINS_AS_MS(1));
   yield put(clearMessages());
   yield put(fetchCaptureKey());
 }
@@ -231,6 +234,8 @@ export function* handleSubmitPayment({ payload }) {
     yield put(basketProcessing(true));
     yield put(clearMessages()); // Don't leave messages floating on the page after clicking submit
     yield put(submitPayment.request());
+    yield put(updatePaymentStatus());
+
     const paymentMethodCheckout = paymentMethods[method];
     const basket = yield select(state => ({ ...state.payment.basket }));
     yield call(paymentMethodCheckout, basket, paymentArgs);
@@ -258,6 +263,43 @@ export function* handleSubmitPayment({ payload }) {
   }
 }
 
+/**
+ * Redux handler for payment status polling and updates
+ *
+ * Note:
+ *  - This handler/worker loops until it is told to stop. via a state property (keepPolling)
+ *  - It is my intention that the modal dialog will show while keepPolling is true. So components and selectors don't
+ *    need to do string comparison, and the logcia can be changed easily at the reducer level.
+ */
+export function* handlePaymentStatus() {
+  const DEFAULT_DELAY_SECS = 5;
+  let keepPolling = true;
+
+  const delaySecs = DEFAULT_DELAY_SECS; // TODO: GRM: Pull from config?
+
+  // NOTE: We may wanna have a max errors check and have a fail state if theres a bad connection or something
+
+  while (keepPolling) {
+    try {
+      const result = yield call(PaymentApiService.getBasket); // TODO: GRM: Update
+      yield put(paymentStatusDataReceived(result));
+    } catch (error) {
+      yield call(handleErrors, error, true);
+    } finally {
+      if (!(yield select(state => {
+        // TODO: GRM: GUT and Simplify after debugging
+        console.log(`PSU STATE: ${state.payment.paymentStatus.keepPolling}`);
+        return state.payment.paymentStatus.keepPolling;
+      }))) {
+        keepPolling = false;
+        yield put(updatePaymentStatus.fulfill());
+      } else {
+        yield delay(SECS_AS_MS(delaySecs));
+      }
+    }
+  }
+}
+
 export default function* saga() {
   yield takeEvery(fetchCaptureKey.TRIGGER, handleFetchCaptureKey);
   yield takeEvery(CAPTURE_KEY_START_TIMEOUT, handleCaptureKeyTimeout);
@@ -267,4 +309,5 @@ export default function* saga() {
   yield takeEvery(removeCoupon.TRIGGER, handleRemoveCoupon);
   yield takeEvery(updateQuantity.TRIGGER, handleUpdateQuantity);
   yield takeEvery(submitPayment.TRIGGER, handleSubmitPayment);
+  yield takeEvery(updatePaymentStatus.TRIGGER, handlePaymentStatus);
 }

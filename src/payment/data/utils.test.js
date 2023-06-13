@@ -14,6 +14,8 @@ import {
   getOrderType,
   transformResults,
   getPropsToRemoveFractionZeroDigits,
+  SECS_AS_MS,
+  MINS_AS_MS,
 } from './utils';
 
 describe('modifyObjectKeys', () => {
@@ -252,4 +254,38 @@ describe('getPropsToRemoveFractionZeroDigits', () => {
     expect(getPropsToRemoveFractionZeroDigits({ price: 79.43, shouldRemoveFractionZeroDigits: true })).toEqual({ });
     expect(getPropsToRemoveFractionZeroDigits({ price: 79.43, shouldRemoveFractionZeroDigits: false })).toEqual({ });
   });
+});
+
+describe('Time Functions', () => {
+  const tests = [
+    /* eslint-disable no-multi-spaces */ // Formatted for tabular layout
+    // Functional Tests
+    { fn: SECS_AS_MS, in: 10, out: 10000 },
+    { fn: SECS_AS_MS, in: 1,  out: 1000 },
+    { fn: SECS_AS_MS, in: 0,  out: 0 },
+    { fn: MINS_AS_MS, in: 10, out: 600000 },
+    { fn: MINS_AS_MS, in: 1,  out: 60000 },
+    { fn: MINS_AS_MS, in: 0,  out: 0 },
+
+    // Comparative Result Tests (Since these are pure & mathematical, they should never fail to run, but be wrong.)
+    { name: 'SECS eq MIN Conversions Match', in: MINS_AS_MS(0),   out: SECS_AS_MS(0) },
+    { name: 'SECS eq MIN Conversions Match', in: MINS_AS_MS(2),   out: SECS_AS_MS(120) },
+    { name: 'SECS eq MIN Conversions Match', in: MINS_AS_MS(500), out: SECS_AS_MS(30000) },
+    // intentionally absurd value
+    { name: 'SECS eq MIN Conversions Match', in: MINS_AS_MS(7217), out: SECS_AS_MS(433020) },
+    /* eslint-enable no-multi-spaces */
+  ];
+
+  for (let i = 0, testPlan = tests[i]; i < tests.length; i++, testPlan = tests[i]) {
+    const functionalTest = testPlan.fn !== undefined;
+    const testBaseName = functionalTest ? testPlan.fn.name : testPlan.name;
+
+    it(`${testBaseName} In: ${testPlan.in} Out: ${testPlan.out}`, () => {
+      if (functionalTest) {
+        expect(testPlan.fn(testPlan.in)).toEqual(testPlan.out);
+      } else {
+        expect(testPlan.in).toEqual(testPlan.out);
+      }
+    });
+  }
 });

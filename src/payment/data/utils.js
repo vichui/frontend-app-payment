@@ -229,3 +229,17 @@ export const getPropsToRemoveFractionZeroDigits = ({ price, shouldRemoveFraction
   }
   return props;
 };
+
+/**
+ * Convert Minutes to Milliseconds
+ * @param x Minutes
+ * @return {number} Milliseconds
+ */
+export const MINS_AS_MS = (x = 0) => x * 60 * 1000;
+
+/**
+ * Convert Seconds to Milliseconds
+ * @param x Seconds
+ * @return {number} Milliseconds
+ */
+export const SECS_AS_MS = (x = 0) => x * 1000;

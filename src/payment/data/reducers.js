@@ -8,13 +8,16 @@ import {
   CLIENT_SECRET_DATA_RECEIVED,
   CLIENT_SECRET_PROCESSING,
   MICROFORM_STATUS,
+  PAYMENT_STATUS_DATA_RECEIVED,
   fetchBasket,
   submitPayment,
   fetchCaptureKey,
   fetchClientSecret,
+  updatePaymentStatus,
 } from './actions';
 
 import { DEFAULT_STATUS } from '../checkout/payment-form/flex-microform/constants';
+import { PAYMENT_STATE } from './constants';
 
 const basketInitialState = {
   loading: true,
@@ -115,10 +118,50 @@ const clientSecret = (state = clientSecretInitialState, action = null) => {
   return state;
 };
 
+const paymentStatusInitialState = {
+  paymentState: PAYMENT_STATE.DEFAULT,
+  keepPolling: false, // TODO: GRM: FIX both debugging items (this is one)
+  counter: 5, // debugging
+};
+
+const paymentStatus = (state = paymentStatusInitialState, action = null) => {
+  // TODO: GRM: this logic can easily be changed to do status detection.
+  /**
+   * @param {{keepPolling: boolean, counter: number, paymentState: string}} instate
+   * @return boolean
+   */
+  const shouldPoll = (instate) => ((instate.counter - 1) > 0);
+
+  // const shouldPoll = (instate) => instate.paymentState === PAYMENT_STATE.PENDING
+  //                                       || instate.paymentState === PAYMENT_STATE.PROCESSING;
+
+  if (action != null) {
+    switch (action.type) {
+      case updatePaymentStatus.TRIGGER:
+        return { ...state, counter: paymentStatusInitialState.counter, keepPolling: true };
+
+      case updatePaymentStatus.FULFILL:
+        return { ...state, keepPolling: false };
+
+      case PAYMENT_STATUS_DATA_RECEIVED:
+        return {
+          ...state,
+          keepPolling: shouldPoll(state),
+          counter: state.counter - 1, // TODO: GRM: Remove after UI Testing. Will use status value.
+          ...action.payload,
+        };
+
+      default:
+    }
+  }
+  return state;
+};
+
 const reducer = combineReducers({
   basket,
   captureKey,
   clientSecret,
+  paymentStatus,
 });
 
 export default reducer;

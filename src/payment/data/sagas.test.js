@@ -1,11 +1,13 @@
 import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
+
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 import { runSaga } from 'redux-saga';
 import { takeEvery } from 'redux-saga/effects';
 import { stopSubmit } from 'redux-form';
 import { Factory } from 'rosie';
+
 import paymentSaga, {
   handleFetchBasket,
   handleSubmitPayment,
@@ -15,6 +17,7 @@ import paymentSaga, {
   handleFetchCaptureKey,
   handleCaptureKeyTimeout,
   handleFetchClientSecret,
+  handlePaymentStatus,
 } from './sagas';
 import { transformResults } from './utils';
 import {
@@ -28,6 +31,7 @@ import {
   submitPayment,
   CAPTURE_KEY_START_TIMEOUT,
   fetchClientSecret,
+  updatePaymentStatus,
 } from './actions';
 import { clearMessages, MESSAGE_TYPES, addMessage } from '../../feedback';
 
@@ -745,6 +749,7 @@ describe('saga tests', () => {
     expect(gen.next().value).toEqual(takeEvery(removeCoupon.TRIGGER, handleRemoveCoupon));
     expect(gen.next().value).toEqual(takeEvery(updateQuantity.TRIGGER, handleUpdateQuantity));
     expect(gen.next().value).toEqual(takeEvery(submitPayment.TRIGGER, handleSubmitPayment));
+    expect(gen.next().value).toEqual(takeEvery(updatePaymentStatus.TRIGGER, handlePaymentStatus));
 
     // If you find yourself adding something here, there are probably more tests to write!
 
