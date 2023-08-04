@@ -226,6 +226,7 @@ class Checkout extends React.Component {
     // Doing this within the Checkout component so locale is configured and available
     let stripePromise;
     if (shouldDisplayStripePaymentForm) {
+      alert(process.env.STRIPE_PUBLISHABLE_KEY);
       stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_KEY, {
         betas: [process.env.STRIPE_BETA_FLAG],
         apiVersion: process.env.STRIPE_API_VERSION,
